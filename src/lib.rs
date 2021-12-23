@@ -73,11 +73,10 @@ impl MerkleTree {
                 node_index - 1
             };
 
-            let hash = self
+            let hash = *self
                 .values
                 .get(&sibling_index)
-                .unwrap_or(&self.default_nodes[h])
-                .clone();
+                .unwrap_or(&self.default_nodes[h]);
 
             hashes.push(hash);
 
@@ -127,11 +126,11 @@ where
 
 fn default_nodes(default_leaf: Digest, height: u32) -> Vec<Digest> {
     let mut default_node = default_leaf;
-    let mut default_nodes = vec![default_node.clone()];
+    let mut default_nodes = vec![default_node];
 
     for _ in 0..height {
-        default_node = hash_pair(default_node.clone(), default_node.clone());
-        default_nodes.push(default_node.clone());
+        default_node = hash_pair(default_node, default_node);
+        default_nodes.push(default_node);
     }
 
     default_nodes
