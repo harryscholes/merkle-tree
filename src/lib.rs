@@ -35,6 +35,8 @@ impl MerkleTree {
     }
 
     pub fn insert(&mut self, index: usize, value: impl AsRef<[u8]>) -> Digest {
+        bounds_check(self.height, index);
+
         let mut node_index = index_of(self.height, index);
 
         self.values.insert(node_index, hash(value));
@@ -62,6 +64,8 @@ impl MerkleTree {
     }
 
     pub fn proof(&self, index: usize) -> Vec<Digest> {
+        bounds_check(self.height, index);
+
         let mut node_index = index_of(self.height, index);
 
         let mut hashes = vec![];
@@ -93,6 +97,17 @@ impl MerkleTree {
                 hash_pair(node_hash, sibling_hash)
             });
         proof_root == self.root()
+    }
+}
+
+fn bounds_check(height: u32, index: usize) {
+    let len = 2usize.pow(height);
+
+    if index >= len {
+        panic!(
+            "index out of bounds: the len is {} but the index is {}",
+            len, index
+        );
     }
 }
 
@@ -189,6 +204,18 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "index out of bounds: the len is 2 but the index is 2")]
+    fn tree_height_1_bounds_check() {
+        MerkleTree::new(1).insert(2, "should_error");
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds: the len is 4 but the index is 4")]
+    fn tree_height_2_bounds_check() {
+        MerkleTree::new(2).insert(4, "should_error");
+    }
+
+    #[test]
     fn root_height_0() {
         let mut tree = MerkleTree::new(0);
         let root = tree.insert(0, "a");
@@ -282,5 +309,19 @@ mod tests {
         let expected_proof = vec![hash("b"), hash_pair(hash("c"), hash("d"))];
         assert_eq!(proof, expected_proof);
         assert!(tree.validate("a", proof));
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds: the len is 2 but the index is 2")]
+    fn proof_height_1_bounds_check() {
+        let tree = MerkleTree::new(1);
+        tree.proof(2);
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds: the len is 4 but the index is 4")]
+    fn proof_height_2_bounds_check() {
+        let tree = MerkleTree::new(2);
+        tree.proof(4);
     }
 }
