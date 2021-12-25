@@ -38,26 +38,27 @@ impl MerkleTree {
         bounds_check(self.height, index);
 
         let mut node_index = index_of(self.height, index);
+        let mut node_value = hash(value);
 
-        self.values.insert(node_index, hash(value));
+        self.values.insert(node_index, node_value);
 
         for h in 0..self.height as usize {
-            let default_node = self.default_nodes[h];
-
-            let (left_index, right_index) = if node_index % 2 == 0 {
-                (node_index, node_index + 1)
+            let sibling_index = if node_index % 2 == 0 {
+                node_index + 1
             } else {
-                (node_index - 1, node_index)
+                node_index - 1
             };
 
-            let left_node = *self.values.get(&left_index).unwrap_or(&default_node);
-            let right_node = *self.values.get(&right_index).unwrap_or(&default_node);
+            let sibling_node = *self
+                .values
+                .get(&sibling_index)
+                .unwrap_or(&self.default_nodes[h]);
 
-            let node_hash = hash_pair(left_node, right_node);
+            node_value = hash_pair(node_value, sibling_node);
 
             node_index /= 2;
 
-            self.values.insert(node_index, node_hash);
+            self.values.insert(node_index, node_value);
         }
 
         self.root()
@@ -68,7 +69,7 @@ impl MerkleTree {
 
         let mut node_index = index_of(self.height, index);
 
-        let mut hashes = vec![];
+        let mut nodes = vec![];
 
         for h in 0..self.height as usize {
             let sibling_index = if node_index % 2 == 0 {
@@ -77,17 +78,17 @@ impl MerkleTree {
                 node_index - 1
             };
 
-            let hash = *self
+            let sibling_node = *self
                 .values
                 .get(&sibling_index)
                 .unwrap_or(&self.default_nodes[h]);
 
-            hashes.push(hash);
+            nodes.push(sibling_node);
 
             node_index /= 2;
         }
 
-        hashes
+        nodes
     }
 
     pub fn validate(&self, value: impl AsRef<[u8]>, proof: Vec<Digest>) -> bool {
