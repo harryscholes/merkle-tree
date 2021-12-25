@@ -42,56 +42,55 @@ impl MerkleTree {
     ) -> Result<Digest, MerkleTreeError> {
         bounds_check(self.height, index)?;
 
-        let mut node_index = index_of(self.height, index);
-        let mut node_value = hash(value);
+        let leaf_index = index_of(self.height, index);
+        let node = hash(value);
+        self.values.insert(leaf_index, node);
 
-        self.values.insert(node_index, node_value);
+        let root = (0..self.height).into_iter().fold(node, |node, h| {
+            let node_index = leaf_index / 2usize.pow(h);
 
-        for h in 0..self.height as usize {
             let sibling_index = if node_index % 2 == 0 {
                 node_index + 1
             } else {
                 node_index - 1
             };
 
-            let sibling_node = *self
+            let sibling = *self
                 .values
                 .get(&sibling_index)
-                .unwrap_or(&self.default_nodes[h]);
+                .unwrap_or(&self.default_nodes[h as usize]);
 
-            node_value = hash_pair(node_value, sibling_node);
+            let parent_index = node_index / 2;
+            let parent = hash_pair(node, sibling);
+            self.values.insert(parent_index, parent);
 
-            node_index /= 2;
+            parent
+        });
 
-            self.values.insert(node_index, node_value);
-        }
-
-        Ok(self.root())
+        Ok(root)
     }
 
     pub fn proof(&self, index: usize) -> Result<Vec<Digest>, MerkleTreeError> {
         bounds_check(self.height, index)?;
 
-        let mut node_index = index_of(self.height, index);
+        let leaf_index = index_of(self.height, index);
 
-        let mut nodes = vec![];
+        let nodes = (0..self.height)
+            .map(|h| {
+                let node_index = leaf_index / 2usize.pow(h);
 
-        for h in 0..self.height as usize {
-            let sibling_index = if node_index % 2 == 0 {
-                node_index + 1
-            } else {
-                node_index - 1
-            };
+                let sibling_index = if node_index % 2 == 0 {
+                    node_index + 1
+                } else {
+                    node_index - 1
+                };
 
-            let sibling_node = *self
-                .values
-                .get(&sibling_index)
-                .unwrap_or(&self.default_nodes[h]);
-
-            nodes.push(sibling_node);
-
-            node_index /= 2;
-        }
+                *self
+                    .values
+                    .get(&sibling_index)
+                    .unwrap_or(&self.default_nodes[h as usize])
+            })
+            .collect();
 
         Ok(nodes)
     }
@@ -108,8 +107,8 @@ impl MerkleTree {
             });
         }
 
-        let proof_root = proof.into_iter().fold(hash(value), |node, sibling_node| {
-            hash_pair(node, sibling_node)
+        let proof_root = proof.into_iter().fold(hash(value), |node, sibling| {
+            hash_pair(node, sibling) // parent
         });
 
         Ok(proof_root == self.root())
