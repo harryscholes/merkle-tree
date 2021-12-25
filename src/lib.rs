@@ -126,9 +126,9 @@ impl MerkleTree {
             .map(|(k, _)| *k - first_index)
             .collect::<Vec<usize>>();
 
-        indexes.sort();
+        indexes.sort_unstable();
 
-        if indexes.len() != 0 {
+        if !indexes.is_empty() {
             Some(indexes)
         } else {
             None
@@ -147,7 +147,7 @@ fn bounds_check(height: u32, index: usize) -> Result<(), MerkleTreeError> {
     let len = 2usize.pow(height);
 
     if index >= len {
-        return Err(MerkleTreeError::IndexOutOfBounds { len, index });
+        Err(MerkleTreeError::IndexOutOfBounds { len, index })
     } else {
         Ok(())
     }
