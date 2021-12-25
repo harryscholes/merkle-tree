@@ -114,6 +114,34 @@ impl MerkleTree {
 
         Ok(proof_root == self.root())
     }
+
+    pub fn indexes_of(&self, value: impl AsRef<[u8]>) -> Option<Vec<usize>> {
+        let value_hash = hash(value);
+
+        let first_index = index_of(self.height, 0);
+
+        let mut indexes = self
+            .values
+            .iter()
+            .filter(|(k, v)| **k > first_index && **v == value_hash)
+            .map(|(k, _)| *k - first_index)
+            .collect::<Vec<usize>>();
+
+        indexes.sort();
+
+        if indexes.len() != 0 {
+            Some(indexes)
+        } else {
+            None
+        }
+    }
+
+    pub fn contains(&self, value: impl AsRef<[u8]>) -> bool {
+        match self.indexes_of(value) {
+            Some(..) => true,
+            None => false,
+        }
+    }
 }
 
 fn bounds_check(height: u32, index: usize) -> Result<(), MerkleTreeError> {
@@ -368,5 +396,35 @@ mod tests {
                 .unwrap_err(),
             MerkleTreeError::ProofLengthIncorrect { len: 2, height: 1 }
         );
+    }
+
+    #[test]
+    fn indexes_of() {
+        let mut tree = MerkleTree::new(2);
+
+        tree.insert(1, "a").unwrap();
+        let indexes = tree.indexes_of("a").unwrap();
+        let expected_indexes = vec![1];
+        assert_eq!(indexes, expected_indexes);
+
+        tree.insert(3, "a").unwrap();
+        let indexes = tree.indexes_of("a").unwrap();
+        let expected_indexes = vec![1, 3];
+        assert_eq!(indexes, expected_indexes);
+
+        assert!(tree.indexes_of("not_in").is_none());
+    }
+
+    #[test]
+    fn contains() {
+        let mut tree = MerkleTree::new(2);
+
+        assert!(!tree.contains("a"));
+
+        tree.insert(3, "a").unwrap();
+        assert!(tree.contains("a"));
+
+        tree.insert(0, "a").unwrap();
+        assert!(tree.contains("a"));
     }
 }
